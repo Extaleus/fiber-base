@@ -2,6 +2,4 @@ module github.com/Extaleus/neightnpassencrypter
 
 go 1.23.5
 
-require golang.org/x/crypto v0.36.0
-
-require golang.org/x/sys v0.31.0 // indirect
+require github.com/tbxark/g4vercel v0.0.4
