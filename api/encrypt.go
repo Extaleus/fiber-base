@@ -23,7 +23,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	// Фиксированные значения для примера
 	publicKeyHex := "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"
-	version := 5
+	version := 10
 
 	result, err := encrypt(password, publicKeyHex, version)
 	if err != nil {
