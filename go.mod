@@ -1,4 +1,4 @@
-module github.com/Extaleus/neightnpassencrypter
+module github.com/Extaleus/fiber-base
 
 go 1.23.5
 
