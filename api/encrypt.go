@@ -116,20 +116,22 @@ func cryptoRandom(min, max int) int {
 	return int(n.Int64()) + min
 }
 
-func acceptAllCookies(driver selenium.WebDriver) {
+func acceptAllCookies(driver selenium.WebDriver) error {
 	var elemCookieAccept selenium.WebElement
 	//find with waiting
 	err := driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
 		foundElem, err := driver.FindElement(selenium.ByXPATH, "//div[@role='button' and .//div[contains(text(), 'Разрешить все cookie')]]")
 		if err != nil {
-			panic(fmt.Errorf("не удалось найти кнопку 'Разрешить все cookie': %v", err))
+			return false, fmt.Errorf("cookie button not found: %v", err)
+			// panic(fmt.Errorf("не удалось найти кнопку 'Разрешить все cookie': %v", err))
 		}
 		elemCookieAccept = foundElem
 		visible, err := foundElem.IsDisplayed()
 		return visible, err
 	}, 10*time.Second)
 	if err != nil {
-		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+		return fmt.Errorf("не удалось найти элемент: %v", err)
+		// panic(fmt.Errorf("не удалось найти элемент: %v", err))
 	}
 
 	//scroll to element
@@ -139,25 +141,29 @@ func acceptAllCookies(driver selenium.WebDriver) {
 	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
 	_, err = driver.ExecuteScript("arguments[0].click();", []interface{}{elemCookieAccept})
 	if err != nil {
-		panic(fmt.Errorf("не удалось кликнуть по кнопке 'Разрешить все cookie': %v", err))
+		return fmt.Errorf("cookie button not found: %v", err)
+		// panic(fmt.Errorf("не удалось кликнуть по кнопке 'Разрешить все cookie': %v", err))
 	}
 	fmt.Println("Успешно нажали на 'Разрешить все cookie'")
+	return nil
 }
 
-func continueWithInstagram(driver selenium.WebDriver) {
+func continueWithInstagram(driver selenium.WebDriver) error {
 	//find with waiting
 	var elemContinueWithInstagram selenium.WebElement
 	err := driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
 		foundElem, err := wd.FindElement(selenium.ByXPATH, "//a[.//span[contains(text(), 'Продолжить с аккаунтом Instagram')]]")
 		if err != nil {
-			panic(fmt.Errorf("не удалось найти кнопку 'Продолжить с аккаунтом Instagram': %v", err))
+			return false, fmt.Errorf("не удалось найти кнопку 'Продолжить с аккаунтом Instagram': %v", err)
+			// panic(fmt.Errorf("не удалось найти кнопку 'Продолжить с аккаунтом Instagram': %v", err))
 		}
 		elemContinueWithInstagram = foundElem
 		visible, err := foundElem.IsDisplayed()
 		return visible, err
 	}, 10*time.Second)
 	if err != nil {
-		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+		return fmt.Errorf("не удалось найти элемент: %v", err)
+		// panic(fmt.Errorf("не удалось найти элемент: %v", err))
 	}
 
 	//scroll to element
@@ -168,32 +174,37 @@ func continueWithInstagram(driver selenium.WebDriver) {
 	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
 	_, err = driver.ExecuteScript("arguments[0].click();", []interface{}{elemContinueWithInstagram})
 	if err != nil {
-		panic(fmt.Errorf("не удалось кликнуть по кнопке 'Продолжить с аккаунтом Instagram': %v", err))
+		return fmt.Errorf("не удалось найти элемент: %v", err)
+		// panic(fmt.Errorf("не удалось кликнуть по кнопке 'Продолжить с аккаунтом Instagram': %v", err))
 	}
 	fmt.Println("Успешно нажали на 'Продолжить с аккаунтом Instagram'")
+	return nil
 }
 
-func fillCredsAndLogin(driver selenium.WebDriver, username, password string) {
+func fillCredsAndLogin(driver selenium.WebDriver, username, password string) error {
 	//find with waiting
 	var elemUsername selenium.WebElement
 	err := driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
 		foundElem, err := driver.FindElement(selenium.ByCSSSelector, "input[placeholder='Имя пользователя, номер телефона или электронный адрес']")
 		if err != nil {
-			panic(fmt.Errorf("не удалось найти кнопку 'Имя пользователя, номер телефона или электронный адрес': %v", err))
+			return false, fmt.Errorf("не удалось найти кнопку 'Продолжить с аккаунтом Instagram': %v", err)
+			// panic(fmt.Errorf("не удалось найти кнопку 'Имя пользователя, номер телефона или электронный адрес': %v", err))
 		}
 		elemUsername = foundElem
 		visible, err := foundElem.IsDisplayed()
 		return visible, err
 	}, 10*time.Second)
 	if err != nil {
-		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+		return fmt.Errorf("не удалось найти элемент: %v", err)
+		// panic(fmt.Errorf("не удалось найти элемент: %v", err))
 	}
 
 	//fill input
 	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
 	err = elemUsername.SendKeys(username)
 	if err != nil {
-		panic(fmt.Errorf("не удалось ввести 'username': %v", err))
+		return fmt.Errorf("не удалось ввести 'username': %v", err)
+		// panic(fmt.Errorf("не удалось ввести 'username': %v", err))
 	}
 
 	time.Sleep(1 * time.Second)
@@ -204,21 +215,24 @@ func fillCredsAndLogin(driver selenium.WebDriver, username, password string) {
 	err = driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
 		foundElem, err := driver.FindElement(selenium.ByCSSSelector, "input[placeholder='Пароль']")
 		if err != nil {
-			panic(fmt.Errorf("не удалось найти кнопку 'Пароль': %v", err))
+			return false, fmt.Errorf("не удалось найти кнопку 'Пароль': %v", err)
+			// panic(fmt.Errorf("не удалось найти кнопку 'Пароль': %v", err))
 		}
 		elemPassword = foundElem
 		visible, err := foundElem.IsDisplayed()
 		return visible, err
 	}, 10*time.Second)
 	if err != nil {
-		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+		return fmt.Errorf("не удалось найти элемент: %v", err)
+		// panic(fmt.Errorf("не удалось найти элемент: %v", err))
 	}
 
 	//fill input
 	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
 	err = elemPassword.SendKeys(password)
 	if err != nil {
-		panic(fmt.Errorf("не удалось ввести 'password': %v", err))
+		return fmt.Errorf("не удалось ввести 'password': %v", err)
+		// panic(fmt.Errorf("не удалось ввести 'password': %v", err))
 	}
 
 	time.Sleep(1 * time.Second)
@@ -229,23 +243,27 @@ func fillCredsAndLogin(driver selenium.WebDriver, username, password string) {
 	err = driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
 		foundElem, err := driver.FindElement(selenium.ByXPATH, "//div[@role='button' and .//div[contains(text(), 'Войти')]]")
 		if err != nil {
-			panic(fmt.Errorf("не удалось найти кнопку 'Войти': %v", err))
+			return false, fmt.Errorf("не удалось найти кнопку 'Войти': %v", err)
+			// panic(fmt.Errorf("не удалось найти кнопку 'Войти': %v", err))
 		}
 		elemSignInButton = foundElem
 		visible, err := foundElem.IsDisplayed()
 		return visible, err
 	}, 10*time.Second)
 	if err != nil {
-		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+		return fmt.Errorf("не удалось найти элемент: %v", err)
+		// panic(fmt.Errorf("не удалось найти элемент: %v", err))
 	}
 
 	//click
 	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
 	_, err = driver.ExecuteScript("arguments[0].click();", []interface{}{elemSignInButton})
 	if err != nil {
-		panic(fmt.Errorf("не удалось кликнуть по кнопке 'Войти': %v", err))
+		return fmt.Errorf("не удалось кликнуть по кнопке 'Войти': %v", err)
+		// panic(fmt.Errorf("не удалось кликнуть по кнопке 'Войти': %v", err))
 	}
 	fmt.Println("Успешно нажали на 'Вход'")
+	return nil
 }
 
 // func getAllCookies(driver selenium.WebDriver) {
