@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/tebeka/selenium"
-	"github.com/tebeka/selenium/chrome"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
@@ -33,12 +32,13 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	defer service.Stop()
 
 	caps := selenium.Capabilities{"browserName": "chrome"}
-	chromeCaps := chrome.Capabilities{
-		Args: []string{
-			"--headless",
-		},
-	}
-	caps.AddChrome(chromeCaps)
+	// chromeCaps := chrome.Capabilities{
+	// 	Args: []string{
+	// 		"--headless",
+	// 	},
+	// }
+	// caps.AddChrome(chromeCaps)
+
 	// caps.AddChrome(chrome.Capabilities{Path: "./chrome-linux64/chrome", Args: []string{
 	// 	"--headless",
 	// }})
