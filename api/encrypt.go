@@ -1,101 +1,269 @@
 package handler
 
 import (
-	"encoding/base64"
-	"encoding/hex"
+	"crypto/rand"
+	"encoding/json"
+	"fmt"
+	"log"
+	"math/big"
 	"net/http"
-	"strconv"
 	"time"
 
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-
-	"golang.org/x/crypto/nacl/box"
+	"github.com/tebeka/selenium"
+	"github.com/tebeka/selenium/chrome"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
+	username := r.URL.Query().Get("username")
 	password := r.URL.Query().Get("password")
+	if username == "" {
+		http.Error(w, "username parameter is required", http.StatusBadRequest)
+		return
+	}
 	if password == "" {
 		http.Error(w, "password parameter is required", http.StatusBadRequest)
 		return
 	}
 
-	// Фиксированные значения для примера
-	publicKeyHex := "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"
-	version := 10
-
-	result, err := encrypt(password, publicKeyHex, version)
+	service, err := selenium.NewChromeDriverService("./chromedriver", 4444)
 	if err != nil {
+		log.Fatal("Error:", err)
+	}
+
+	defer service.Stop()
+
+	caps := selenium.Capabilities{"browserName": "chrome"}
+	chromeCaps := chrome.Capabilities{
+		Args: []string{
+			"--headless",
+		},
+	}
+	caps.AddChrome(chromeCaps)
+	// caps.AddChrome(chrome.Capabilities{Path: "./chrome-linux64/chrome", Args: []string{
+	// 	"--headless",
+	// }})
+
+	driver, err := selenium.NewRemote(caps, "")
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+
+	err = driver.MaximizeWindow("")
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+
+	authFlow(driver, username, password)
+
+	allCookies, err := driver.GetCookies()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// fileAllCookies, err := os.Create("allCookies.json")
+	// if err != nil {
+	// log.Fatal(err)
+	// }
+	// defer fileAllCookies.Close()
+	// encoder := json.NewEncoder(fileAllCookies)
+	// encoder.SetIndent("", "  ")
+	// err = encoder.Encode(allCookies)
+	// if err != nil {
+	// log.Fatal(err)
+	// }
+	// fmt.Println("Успешно сохранили Cookies в allCookies.json")
+
+	w.Header().Set("Content-Type", "application/json")
+	// Кодируем структуру в JSON и отправляем
+	if err := json.NewEncoder(w).Encode(allCookies); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(result))
 }
 
-func encrypt(password, publicKeyHex string, version int) (string, error) {
-	publicKey, err := hex.DecodeString(publicKeyHex)
+func authFlow(driver selenium.WebDriver, username, password string) {
+	err := driver.Get("https://www.threads.net/login/")
 	if err != nil {
-		return "", err
+		log.Fatal("Error:", err)
 	}
 
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	plaintext := []byte(password)
-	additionalData := []byte(timestamp)
+	// driver.SetPageLoadTimeout(100 * time.Second)
 
-	aesKey := make([]byte, 32)
-	if _, err := rand.Read(aesKey); err != nil {
-		return "", err
-	}
+	// pageScreenshot(driver, "screen1")
+	time.Sleep(2 * time.Second)
+	// pageScreenshot(driver, "screen2")
+	time.Sleep(1 * time.Second)
 
-	var recipientPubKey [32]byte
-	copy(recipientPubKey[:], publicKey)
+	acceptAllCookies(driver)
 
-	sealedKey, err := box.SealAnonymous(nil, aesKey, &recipientPubKey, rand.Reader)
-	if err != nil {
-		return "", err
-	}
+	time.Sleep(2 * time.Second)
+	// pageScreenshot(driver, "screen3")
 
-	block, err := aes.NewCipher(aesKey)
-	if err != nil {
-		return "", err
-	}
+	continueWithInstagram(driver)
 
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
+	time.Sleep(2 * time.Second)
+	// pageScreenshot(driver, "screen4")
 
-	iv := make([]byte, gcm.NonceSize())
-	if _, err := rand.Read(iv); err != nil {
-		return "", err
-	}
+	fillCredsAndLogin(driver, username, password)
 
-	encrypted := gcm.Seal(nil, iv, plaintext, additionalData)
+	time.Sleep(10 * time.Second)
+	// pageScreenshot(driver, "screen7")
 
-	buffer := make([]byte, 100+len(plaintext))
-	offset := 0
-
-	buffer[offset] = 1
-	offset++
-	buffer[offset] = byte(version)
-	offset++
-
-	buffer[offset] = byte(len(sealedKey) & 255)
-	buffer[offset+1] = byte(len(sealedKey) >> 8 & 255)
-	offset += 2
-
-	copy(buffer[offset:], sealedKey)
-	offset += len(sealedKey)
-
-	tag := encrypted[len(encrypted)-16:]
-	ciphertext := encrypted[:len(encrypted)-16]
-
-	copy(buffer[offset:], tag)
-	offset += 16
-	copy(buffer[offset:], ciphertext)
-
-	return "#PWD_BROWSER:" + strconv.Itoa(version) + ":" + timestamp + ":" + base64.StdEncoding.EncodeToString(buffer), nil
+	//get cookies
+	// getAllCookies(driver)
 }
+
+func cryptoRandom(min, max int) int {
+	n, _ := rand.Int(rand.Reader, big.NewInt(int64(max-min+1)))
+	return int(n.Int64()) + min
+}
+
+func acceptAllCookies(driver selenium.WebDriver) {
+	var elemCookieAccept selenium.WebElement
+	//find with waiting
+	err := driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
+		foundElem, err := driver.FindElement(selenium.ByXPATH, "//div[@role='button' and .//div[contains(text(), 'Разрешить все cookie')]]")
+		if err != nil {
+			panic(fmt.Errorf("не удалось найти кнопку 'Разрешить все cookie': %v", err))
+		}
+		elemCookieAccept = foundElem
+		visible, err := foundElem.IsDisplayed()
+		return visible, err
+	}, 10*time.Second)
+	if err != nil {
+		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+	}
+
+	//scroll to element
+	driver.ExecuteScript("arguments[0].scrollIntoView({block: 'center'});", []interface{}{elemCookieAccept})
+
+	//click
+	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
+	_, err = driver.ExecuteScript("arguments[0].click();", []interface{}{elemCookieAccept})
+	if err != nil {
+		panic(fmt.Errorf("не удалось кликнуть по кнопке 'Разрешить все cookie': %v", err))
+	}
+	fmt.Println("Успешно нажали на 'Разрешить все cookie'")
+}
+
+func continueWithInstagram(driver selenium.WebDriver) {
+	//find with waiting
+	var elemContinueWithInstagram selenium.WebElement
+	err := driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
+		foundElem, err := wd.FindElement(selenium.ByXPATH, "//a[.//span[contains(text(), 'Продолжить с аккаунтом Instagram')]]")
+		if err != nil {
+			panic(fmt.Errorf("не удалось найти кнопку 'Продолжить с аккаунтом Instagram': %v", err))
+		}
+		elemContinueWithInstagram = foundElem
+		visible, err := foundElem.IsDisplayed()
+		return visible, err
+	}, 10*time.Second)
+	if err != nil {
+		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+	}
+
+	//scroll to element
+	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
+	driver.ExecuteScript("arguments[0].scrollIntoView(true);", []interface{}{elemContinueWithInstagram})
+
+	//click
+	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
+	_, err = driver.ExecuteScript("arguments[0].click();", []interface{}{elemContinueWithInstagram})
+	if err != nil {
+		panic(fmt.Errorf("не удалось кликнуть по кнопке 'Продолжить с аккаунтом Instagram': %v", err))
+	}
+	fmt.Println("Успешно нажали на 'Продолжить с аккаунтом Instagram'")
+}
+
+func fillCredsAndLogin(driver selenium.WebDriver, username, password string) {
+	//find with waiting
+	var elemUsername selenium.WebElement
+	err := driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
+		foundElem, err := driver.FindElement(selenium.ByCSSSelector, "input[placeholder='Имя пользователя, номер телефона или электронный адрес']")
+		if err != nil {
+			panic(fmt.Errorf("не удалось найти кнопку 'Имя пользователя, номер телефона или электронный адрес': %v", err))
+		}
+		elemUsername = foundElem
+		visible, err := foundElem.IsDisplayed()
+		return visible, err
+	}, 10*time.Second)
+	if err != nil {
+		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+	}
+
+	//fill input
+	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
+	err = elemUsername.SendKeys(username)
+	if err != nil {
+		panic(fmt.Errorf("не удалось ввести 'username': %v", err))
+	}
+
+	time.Sleep(1 * time.Second)
+	// pageScreenshot(driver, "screen5")
+
+	//find with waiting
+	var elemPassword selenium.WebElement
+	err = driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
+		foundElem, err := driver.FindElement(selenium.ByCSSSelector, "input[placeholder='Пароль']")
+		if err != nil {
+			panic(fmt.Errorf("не удалось найти кнопку 'Пароль': %v", err))
+		}
+		elemPassword = foundElem
+		visible, err := foundElem.IsDisplayed()
+		return visible, err
+	}, 10*time.Second)
+	if err != nil {
+		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+	}
+
+	//fill input
+	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
+	err = elemPassword.SendKeys(password)
+	if err != nil {
+		panic(fmt.Errorf("не удалось ввести 'password': %v", err))
+	}
+
+	time.Sleep(1 * time.Second)
+	// pageScreenshot(driver, "screen6")
+
+	//find with waiting
+	var elemSignInButton selenium.WebElement
+	err = driver.WaitWithTimeout(func(wd selenium.WebDriver) (bool, error) {
+		foundElem, err := driver.FindElement(selenium.ByXPATH, "//div[@role='button' and .//div[contains(text(), 'Войти')]]")
+		if err != nil {
+			panic(fmt.Errorf("не удалось найти кнопку 'Войти': %v", err))
+		}
+		elemSignInButton = foundElem
+		visible, err := foundElem.IsDisplayed()
+		return visible, err
+	}, 10*time.Second)
+	if err != nil {
+		panic(fmt.Errorf("не удалось найти элемент: %v", err))
+	}
+
+	//click
+	time.Sleep(time.Duration(cryptoRandom(300, 500)) * time.Millisecond)
+	_, err = driver.ExecuteScript("arguments[0].click();", []interface{}{elemSignInButton})
+	if err != nil {
+		panic(fmt.Errorf("не удалось кликнуть по кнопке 'Войти': %v", err))
+	}
+	fmt.Println("Успешно нажали на 'Вход'")
+}
+
+// func getAllCookies(driver selenium.WebDriver) {
+// 	allCookies, err := driver.GetCookies()
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	fileAllCookies, err := os.Create("allCookies.json")
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	defer fileAllCookies.Close()
+// 	encoder := json.NewEncoder(fileAllCookies)
+// 	encoder.SetIndent("", "  ")
+// 	err = encoder.Encode(allCookies)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	fmt.Println("Успешно сохранили Cookies в allCookies.json")
+// }
