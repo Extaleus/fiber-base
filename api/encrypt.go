@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"net/http"
 	"time"
@@ -26,7 +25,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	service, err := selenium.NewChromeDriverService("./chromedriver", 4444)
 	if err != nil {
-		log.Fatal("Error:", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
 	defer service.Stop()
@@ -45,30 +44,30 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	driver, err := selenium.NewRemote(caps, "")
 	if err != nil {
-		log.Fatal("Error:", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
 	err = driver.MaximizeWindow("")
 	if err != nil {
-		log.Fatal("Error:", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	authFlow(driver, username, password)
+	authFlow(w, driver, username, password)
 
 	allCookies, err := driver.GetCookies()
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	// fileAllCookies, err := os.Create("allCookies.json")
 	// if err != nil {
-	// log.Fatal(err)
+	// http.Error(err)
 	// }
 	// defer fileAllCookies.Close()
 	// encoder := json.NewEncoder(fileAllCookies)
 	// encoder.SetIndent("", "  ")
 	// err = encoder.Encode(allCookies)
 	// if err != nil {
-	// log.Fatal(err)
+	// http.Error(err)
 	// }
 	// fmt.Println("Успешно сохранили Cookies в allCookies.json")
 
@@ -80,10 +79,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func authFlow(driver selenium.WebDriver, username, password string) {
+func authFlow(w http.ResponseWriter, driver selenium.WebDriver, username, password string) {
 	err := driver.Get("https://www.threads.net/login/")
 	if err != nil {
-		log.Fatal("Error:", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
 	// driver.SetPageLoadTimeout(100 * time.Second)
@@ -252,18 +251,18 @@ func fillCredsAndLogin(driver selenium.WebDriver, username, password string) {
 // func getAllCookies(driver selenium.WebDriver) {
 // 	allCookies, err := driver.GetCookies()
 // 	if err != nil {
-// 		log.Fatal(err)
+// 		http.Error(err)
 // 	}
 // 	fileAllCookies, err := os.Create("allCookies.json")
 // 	if err != nil {
-// 		log.Fatal(err)
+// 		http.Error(err)
 // 	}
 // 	defer fileAllCookies.Close()
 // 	encoder := json.NewEncoder(fileAllCookies)
 // 	encoder.SetIndent("", "  ")
 // 	err = encoder.Encode(allCookies)
 // 	if err != nil {
-// 		log.Fatal(err)
+// 		http.Error(err)
 // 	}
 // 	fmt.Println("Успешно сохранили Cookies в allCookies.json")
 // }
